@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: shopify-collection-manager
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SHOPIFY_STORE
+        sync: false
+      - key: SHOPIFY_TOKEN
+        sync: false
+      - key: SHOPIFY_WEBHOOK_SECRET
+        sync: false
+ 
