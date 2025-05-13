@@ -95,42 +95,38 @@ app.post('/process', async (req, res) => {
 
 // Webhook endpoint for product creation/update
 app.post('/webhook/product', async (req, res) => {
+    console.log('Received webhook request');
+    
+    // Verify webhook signature
+    const hmac = req.headers['x-shopify-hmac-sha256'];
+    const rawBody = req.rawBody;
+    
+    if (!hmac || !rawBody) {
+        console.error('Missing HMAC or raw body');
+        return res.status(401).send('Invalid webhook request');
+    }
+
+    const hash = crypto
+        .createHmac('sha256', process.env.SHOPIFY_WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('base64');
+
+    if (hash !== hmac) {
+        console.error('Invalid webhook signature');
+        return res.status(401).send('Invalid webhook signature');
+    }
+
+    console.log('Webhook signature verified');
+    console.log('Webhook data:', JSON.stringify(req.body, null, 2));
+
     try {
-        // Verify webhook signature
-        const hmac = req.headers['x-shopify-hmac-sha256'];
-        const rawBody = req.rawBody;
-        const hash = crypto
-            .createHmac('sha256', process.env.SHOPIFY_WEBHOOK_SECRET)
-            .update(rawBody)
-            .digest('base64');
-
-        console.log('Received webhook for product');
-        console.log('HMAC from header:', hmac);
-        console.log('Calculated HMAC:', hash);
-        console.log('Raw body:', rawBody);
-
-        // Temporarily disable signature verification for debugging
-        // if (hash !== hmac) {
-        //     console.error('Invalid webhook signature');
-        //     return res.status(401).send('Invalid webhook signature');
-        // }
-
-        const productData = req.body;
-        console.log('Processing webhook for product:', productData.id);
-
-        // Add a longer delay to allow SKU generator to complete
-        console.log('Waiting 30 seconds before processing to allow SKU generator to complete...');
-        await new Promise(resolve => setTimeout(resolve, 30000));
-
         // Process the product
-        await processProducts(productData);
-        console.log('Successfully processed product:', productData.id);
-        res.status(200).send('Webhook processed successfully');
+        await processProducts(req.body);
+        console.log('Product processed successfully');
+        res.status(200).send('OK');
     } catch (error) {
         console.error('Error processing webhook:', error);
-        // Send 200 to acknowledge receipt even if processing fails
-        // This prevents Shopify from retrying the webhook
-        res.status(200).send('Webhook received but processing failed');
+        res.status(500).send('Error processing webhook');
     }
 });
 
