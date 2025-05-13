@@ -33,39 +33,76 @@ function hasWord(title, word) {
     return new RegExp(`\\b${word}\\b`, 'i').test(title);
 }
 
-function getCollectionIdsForTitle(title, sku) {
-    if (!title && !sku) {
-        console.log('No title or SKU provided');
+function getCollectionIdsForTitle(title) {
+    if (!title) {
+        console.log('No title provided');
         return [];
     }
 
-    const upperTitle = title ? title.toUpperCase() : '';
-    const upperSku = sku ? sku.toUpperCase() : '';
+    const upperTitle = title.toUpperCase();
     const collectionIds = new Set();
 
+    console.log('Analyzing title:', upperTitle);
+
     // Main mapping logic
-    if (hasWord(upperTitle, "BEADS") || hasWord(upperSku, "BEADS")) collectionIds.add(COLLECTION_IDS.BEADS);
-    if (hasWord(upperTitle, "ROUND") || hasWord(upperSku, "RD")) {
-        if (hasWord(upperTitle, "POLISH") || hasWord(upperTitle, "POLISHED") || hasWord(upperSku, "PL")) collectionIds.add(COLLECTION_IDS.ROUND_POLISHED);
-        if (hasWord(upperTitle, "FACETED") || hasWord(upperTitle, "FACET") || hasWord(upperSku, "FC")) collectionIds.add(COLLECTION_IDS.ROUND_FACETED);
-        if (hasWord(upperTitle, "FROSTED") || hasWord(upperTitle, "FROST") || hasWord(upperSku, "FR")) collectionIds.add(COLLECTION_IDS.ROUND_FROSTED);
+    if (hasWord(upperTitle, "BEADS")) {
+        console.log('Found BEADS in title');
+        collectionIds.add(COLLECTION_IDS.BEADS);
     }
-    if (hasWord(upperTitle, "RONDELLE") || hasWord(upperSku, "RONDELLE")) {
-        if (hasWord(upperTitle, "POLISH") || hasWord(upperTitle, "POLISHED") || hasWord(upperSku, "PL")) collectionIds.add(COLLECTION_IDS.RONDELLE_POLISHED);
-        if (hasWord(upperTitle, "FACETED") || hasWord(upperTitle, "FACET") || hasWord(upperSku, "FC")) collectionIds.add(COLLECTION_IDS.RONDELLE_FACETED);
-        if (hasWord(upperTitle, "FROSTED") || hasWord(upperTitle, "FROST") || hasWord(upperSku, "FR")) collectionIds.add(COLLECTION_IDS.RONDELLE_FROSTED);
+
+    if (hasWord(upperTitle, "ROUND")) {
+        console.log('Found ROUND in title');
+        if (hasWord(upperTitle, "POLISH") || hasWord(upperTitle, "POLISHED")) {
+            console.log('Found POLISHED in title');
+            collectionIds.add(COLLECTION_IDS.ROUND_POLISHED);
+        }
+        if (hasWord(upperTitle, "FACETED") || hasWord(upperTitle, "FACET")) {
+            console.log('Found FACETED in title');
+            collectionIds.add(COLLECTION_IDS.ROUND_FACETED);
+        }
+        if (hasWord(upperTitle, "FROSTED") || hasWord(upperTitle, "FROST")) {
+            console.log('Found FROSTED in title');
+            collectionIds.add(COLLECTION_IDS.ROUND_FROSTED);
+        }
     }
+
+    if (hasWord(upperTitle, "RONDELLE")) {
+        console.log('Found RONDELLE in title');
+        if (hasWord(upperTitle, "POLISH") || hasWord(upperTitle, "POLISHED")) {
+            console.log('Found POLISHED in title');
+            collectionIds.add(COLLECTION_IDS.RONDELLE_POLISHED);
+        }
+        if (hasWord(upperTitle, "FACETED") || hasWord(upperTitle, "FACET")) {
+            console.log('Found FACETED in title');
+            collectionIds.add(COLLECTION_IDS.RONDELLE_FACETED);
+        }
+        if (hasWord(upperTitle, "FROSTED") || hasWord(upperTitle, "FROST")) {
+            console.log('Found FROSTED in title');
+            collectionIds.add(COLLECTION_IDS.RONDELLE_FROSTED);
+        }
+    }
+
+    // Check for shapes
     for (const [shape, collectionId] of Object.entries(SHAPE_COLLECTIONS)) {
-        if (hasWord(upperTitle, shape) || hasWord(upperSku, shape)) collectionIds.add(collectionId);
+        if (hasWord(upperTitle, shape)) {
+            console.log(`Found shape ${shape} in title`);
+            collectionIds.add(collectionId);
+        }
     }
+
+    // Check for freeform shapes
     for (const shape of FREEFORM_SHAPES) {
-        if (hasWord(upperTitle, shape) || hasWord(upperSku, shape)) collectionIds.add(COLLECTION_IDS.FREEFORM);
+        if (hasWord(upperTitle, shape)) {
+            console.log(`Found freeform shape ${shape} in title`);
+            collectionIds.add(COLLECTION_IDS.FREEFORM);
+        }
     }
 
     // Stone name logic with aliases
     for (const [canonical, aliases] of Object.entries(stoneAliases)) {
         for (const alias of aliases) {
-            if (hasWord(upperTitle, alias) || hasWord(upperSku, alias)) {
+            if (hasWord(upperTitle, alias)) {
+                console.log(`Found stone ${canonical} (alias: ${alias}) in title`);
                 if (gemstoneCollectionMap[canonical]) {
                     collectionIds.add(gemstoneCollectionMap[canonical]);
                 }
@@ -135,11 +172,16 @@ export async function processProducts(productData = null) {
 
         // If productData is provided, process only that product
         if (productData) {
-            const { id, title, variants } = productData;
+            const { id, title } = productData;
             console.log(`Processing product: ${title} (ID: ${id})`);
-            const sku = variants && variants[0] ? variants[0].sku : null;
-            console.log(`Product SKU: ${sku}`);
-            const collectionIds = getCollectionIdsForTitle(title, sku);
+            
+            if (!title) {
+                console.log('No title found for product');
+                return;
+            }
+
+            const collectionIds = getCollectionIdsForTitle(title);
+            console.log('Found collection IDs:', collectionIds);
             
             if (collectionIds.length === 0) {
                 console.log(`No matching collections found for product: ${title}`);
@@ -151,7 +193,9 @@ export async function processProducts(productData = null) {
             // Process collections in sequence with delays
             for (const collectionId of collectionIds) {
                 try {
+                    console.log(`Adding product ${id} to collection ${collectionId}`);
                     await addProductToCollection(id, collectionId);
+                    console.log(`Successfully added product ${id} to collection ${collectionId}`);
                     // Add a longer delay between collection additions
                     await delay(1000);
                 } catch (error) {
@@ -197,7 +241,7 @@ export async function processProducts(productData = null) {
             console.log(`\nProcessing product: ${product.title} (ID: ${product.id})`);
             const sku = product.variants && product.variants[0] ? product.variants[0].sku : null;
             console.log(`Product SKU: ${sku}`);
-            const collectionIds = getCollectionIdsForTitle(product.title, sku);
+            const collectionIds = getCollectionIdsForTitle(product.title);
             
             if (collectionIds.length === 0) {
                 console.log(`No matching collections found for product: ${product.title}`);

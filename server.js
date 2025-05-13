@@ -120,8 +120,19 @@ app.post('/webhook/product', async (req, res) => {
     console.log('Webhook data:', JSON.stringify(req.body, null, 2));
 
     try {
+        // Add delay to allow SKU generator to complete
+        console.log('Waiting 30 seconds before processing to allow SKU generator to complete...');
+        await new Promise(resolve => setTimeout(resolve, 30000));
+
         // Process the product
-        await processProducts(req.body);
+        const productData = {
+            id: req.body.id,
+            title: req.body.title,
+            variants: req.body.variants
+        };
+        
+        console.log('Processing product:', productData);
+        await processProducts(productData);
         console.log('Product processed successfully');
         res.status(200).send('OK');
     } catch (error) {
